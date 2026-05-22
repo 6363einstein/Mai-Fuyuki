@@ -118,7 +118,11 @@ async def dreamxbotz_start():
     today = date.today()
     now = datetime.now(tz)
     time = now.strftime("%H:%M:%S %p")
-    await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time))
+    try:
+        await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time))
+    except Exception as log_err:
+        logging.warning(f"Could not send startup message to LOG_CHANNEL ({LOG_CHANNEL}): {log_err}")
+        logging.warning("Make sure the bot is an admin in LOG_CHANNEL and the channel ID is correct in your environment variables.")
     app = web.AppRunner(await web_server())
     await app.setup()
     bind_address = "0.0.0.0"
