@@ -1423,9 +1423,12 @@ async def cb_handler(client: Client, query: CallbackQuery):
         try:
             await query.answer()
             log_msg      = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-            fname_quoted = quote_plus(get_name(log_msg))
+            fname        = get_name(log_msg)
+            fname_quoted = quote_plus(fname)
             fhash        = get_hash(log_msg)
             mid          = str(log_msg.id)
+            user         = query.from_user
+            mention      = user.mention if user else "Unknown"
             if is_stream:
                 link  = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
                 label = '📺 Stream Link'
@@ -1441,6 +1444,20 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 quote=True,
                 disable_web_page_preview=True
             )
+            log_caption = (
+                f"<b>📁 {fname}</b>\n\n"
+                f"👤 {mention} (<code>{user.id if user else '?'}</code>)\n"
+                f"🔗 {label}:\n<code>{link}</code>"
+            )
+            try:
+                await client.send_cached_media(
+                    chat_id=LOG_CHANNEL,
+                    file_id=file_id,
+                    caption=log_caption,
+                    parse_mode='html'
+                )
+            except Exception as log_err:
+                logger.warning(f"LOG_CHANNEL send error: {log_err}")
         except Exception as e:
             logger.exception(f'getstream/getdownload error: {e}')
             await query.answer('⚠️ Could not generate link. Try again.', show_alert=True)
