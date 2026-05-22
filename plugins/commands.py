@@ -434,103 +434,44 @@ async def start(client, message):
                 logger.exception(f"Error In Deleting Sticker - {e}")
                 pass
 
+# In-memory cache: {file_unique_id -> (bin_msg_id, file_name, hash)}
+# Prevents forwarding same file to BIN_CHANNEL more than once per bot session.
+_bin_url_cache: dict = {}
+
+
 async def stream_buttons(user_id: int, file_id: str, client=None):
-    """Two callback buttons: Stream and Download. On click bot replies with link text."""
+    """
+    Forward file to BIN_CHANNEL ONCE, cache the result, and return
+    direct URL buttons — no callback needed, BIN_CHANNEL gets no duplicates.
+    """
     try:
-        import base64
-        encoded = base64.urlsafe_b64encode(file_id.encode()).decode().rstrip('=')
+        from pyrogram.file_id import FileId as _FID
+        _decoded = _FID.decode(file_id)
+        cache_key = str(_decoded.media_id)
+
+        if cache_key in _bin_url_cache:
+            stream_url, download_url = _bin_url_cache[cache_key]
+        else:
+            # Forward to BIN_CHANNEL once to get stable msg_id + hash
+            tmp_msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+            _fname        = get_name(tmp_msg) or "file"
+            _fname_quoted = quote_plus(_fname)
+            _fhash        = get_hash(tmp_msg)
+            _mid          = str(tmp_msg.id)
+
+            stream_url   = f"{URL}watch/{_mid}/{_fname_quoted}?hash={_fhash}"
+            download_url = f"{URL}{_mid}/{_fname_quoted}?hash={_fhash}"
+            _bin_url_cache[cache_key] = (stream_url, download_url)
+
         return [
             [
-                InlineKeyboardButton('📺 Stream', callback_data=f'getstream#{encoded}'),
-                InlineKeyboardButton('⬇️ Download', callback_data=f'getdownload#{encoded}'),
+                InlineKeyboardButton('📺 Stream', url=stream_url),
+                InlineKeyboardButton('⬇️ Download', url=download_url),
             ]
         ]
     except Exception as e:
         logger.warning(f'stream_buttons error: {e}')
         return None
-    
-# In-memory cache: prevents re-forwarding same file to BIN_CHANNEL on every button click
-# Key: Telegram media_id (stable per file), Value: (bin_msg_id, file_name, hash)
-_bin_msg_cache: dict = {}
-
-
-async def _get_bin_msg_info(client, file_id: str):
-    """
-    Return (message_id, file_name, hash) for a file in BIN_CHANNEL.
-    Caches result so each unique file is forwarded to BIN_CHANNEL only ONCE —
-    prevents duplicate messages appearing in BIN_CHANNEL on repeated clicks.
-    """
-    from pyrogram.file_id import FileId as _FileId
-    decoded = _FileId.decode(file_id)
-    cache_key = str(decoded.media_id)  # stable unique key per file
-
-    if cache_key in _bin_msg_cache:
-        return _bin_msg_cache[cache_key]
-
-    # Not in cache — forward to BIN_CHANNEL once and store result
-    msg       = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-    file_name = get_name(msg) or ""
-    fhash     = get_hash(msg)
-    mid       = str(msg.id)
-
-    _bin_msg_cache[cache_key] = (mid, file_name, fhash)
-    return mid, file_name, fhash
-
-
-@Client.on_callback_query(filters.regex(r'^getstream#(.+)'))
-async def getstream_callback(client, callback_query):
-    """Handle Stream button — generate watch link without duplicating in BIN_CHANNEL."""
-    try:
-        encoded = callback_query.data.split('#', 1)[1]
-        file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
-
-        await callback_query.answer("⏳ Generating stream link...", show_alert=False)
-
-        mid, file_name, fhash = await _get_bin_msg_info(client, file_id)
-        fname_quoted = quote_plus(file_name) if file_name else "file"
-        stream_url   = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
-
-        await callback_query.message.reply_text(
-            text=(
-                f"<b>📺 Watch Online</b>\n\n"
-                f"<b>File:</b> <code>{file_name or 'Unknown'}</code>\n\n"
-                f"🔗 <a href='{stream_url}'>Click here to watch</a>\n\n"
-                f"<i>⚠️ Link expires soon. Stream before it's gone!</i>"
-            ),
-            parse_mode=enums.ParseMode.HTML,
-            disable_web_page_preview=True
-        )
-    except Exception as e:
-        logger.exception(f"getstream_callback error: {e}")
-        await callback_query.answer("⚠️ Failed to generate stream link.", show_alert=True)
-
-
-@Client.on_callback_query(filters.regex(r'^getdownload#(.+)'))
-async def getdownload_callback(client, callback_query):
-    """Handle Download button — generate download link without duplicating in BIN_CHANNEL."""
-    try:
-        encoded = callback_query.data.split('#', 1)[1]
-        file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
-
-        await callback_query.answer("⏳ Generating download link...", show_alert=False)
-
-        mid, file_name, fhash = await _get_bin_msg_info(client, file_id)
-        fname_quoted = quote_plus(file_name) if file_name else "file"
-        download_url = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
-
-        await callback_query.message.reply_text(
-            text=(
-                f"<b>⬇️ Download Link</b>\n\n"
-                f"<b>File:</b> <code>{file_name or 'Unknown'}</code>\n\n"
-                f"🔗 <a href='{download_url}'>Click here to download</a>\n\n"
-                f"<i>⚠️ Link expires soon. Download before it's gone!</i>"
-            ),
-            parse_mode=enums.ParseMode.HTML,
-            disable_web_page_preview=True
-        )
-    except Exception as e:
-        logger.exception(f"getdownload_callback error: {e}")
-        await callback_query.answer("⚠️ Failed to generate download link.", show_alert=True)
 
 
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
