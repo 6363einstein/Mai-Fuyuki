@@ -1421,7 +1421,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
         padding   = 4 - len(encoded) % 4
         file_id   = base64.urlsafe_b64decode(encoded + '=' * padding).decode()
         try:
-            await query.answer()
             log_msg      = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
             fname        = get_name(log_msg)
             fname_quoted = quote_plus(fname)
@@ -1432,32 +1431,29 @@ async def cb_handler(client: Client, query: CallbackQuery):
             if is_stream:
                 link  = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
                 label = '📺 Stream Link'
-                note  = 'Open in browser or any video player to stream online.'
             else:
                 link  = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
                 label = '⬇️ Download Link'
-                note  = 'Tap to download the file directly.'
-            text = f"<b>{label}</b>\n\n<code>{link}</code>\n\n<i>{note}</i>"
-            await query.message.reply(
-                text,
-                parse_mode='html',
-                quote=True,
-                disable_web_page_preview=True
+
+            # Show link as popup alert — no new message
+            await query.answer(
+                text=f"{label}\n\n{link}",
+                show_alert=True
             )
+
+            # Log to LOG_CHANNEL with file + caption
             log_caption = (
                 f"<b>📁 {fname}</b>\n\n"
                 f"👤 {mention} (<code>{user.id if user else '?'}</code>)\n"
                 f"🔗 {label}:\n<code>{link}</code>"
             )
             try:
-                # Forward log_msg to LOG_CHANNEL then edit caption
                 forwarded = await log_msg.forward(LOG_CHANNEL)
                 await forwarded.edit_caption(
                     caption=log_caption,
                     parse_mode='html'
                 )
             except Exception as log_err:
-                # Fallback: send caption as text
                 try:
                     await client.send_message(
                         chat_id=LOG_CHANNEL,
