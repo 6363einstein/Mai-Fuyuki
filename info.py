@@ -261,7 +261,7 @@ MAX_BTN   = is_enabled(environ.get('MAX_BTN', 'True'), True)                 # S
 MAX_LIST_ELM = int(environ.get('MAX_LIST_ELM') or 10) or None                # Max items in dropdown lists (0 = unlimited)
 
 P_TTI_SHOW_OFF  = is_enabled(environ.get('P_TTI_SHOW_OFF', 'False'), False)  # Redirect group users to PM instead of sending file
-BUTTON_MODE     = is_enabled(environ.get('BUTTON_MODE', 'False'), False)      # Combine filename + size into one button
+BUTTON_MODE     = is_enabled(environ.get('BUTTON_MODE', 'True'), True)        # Combine filename + size into one button
 NO_RESULTS_MSG  = is_enabled(environ.get('NO_RESULTS_MSG', 'True'), True)    # Log "no results" events to LOG_CHANNEL
 
 MSG_ALRT           = environ.get('MSG_ALRT', '')                              # Small alert text shown below file buttons
