@@ -435,8 +435,19 @@ async def start(client, message):
                 pass
 
 async def stream_buttons(user_id: int, file_id: str, client=None):
-    """No buttons on auto-filter results. Stream links come via stream_link.py plugin."""
-    return None
+    """Two callback buttons: Stream and Download. On click bot replies with link text."""
+    try:
+        import base64
+        encoded = base64.urlsafe_b64encode(file_id.encode()).decode().rstrip('=')
+        return [
+            [
+                InlineKeyboardButton('📺 Stream', callback_data=f'getstream#{encoded}'),
+                InlineKeyboardButton('⬇️ Download', callback_data=f'getdownload#{encoded}'),
+            ]
+        ]
+    except Exception as e:
+        logger.warning(f'stream_buttons error: {e}')
+        return None
     
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
 async def log_file(bot, message):

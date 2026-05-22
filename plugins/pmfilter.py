@@ -1414,6 +1414,43 @@ async def cb_handler(client: Client, query: CallbackQuery):
             return
 
 
+    elif DreamxData.startswith('getstream#') or DreamxData.startswith('getdownload#'):
+        import base64
+        is_stream = DreamxData.startswith('getstream#')
+        encoded   = DreamxData.split('#', 1)[1]
+        padding   = 4 - len(encoded) % 4
+        file_id   = base64.urlsafe_b64decode(encoded + '=' * padding).decode()
+        try:
+            await query.answer()
+            log_msg      = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+            fname_quoted = quote_plus(get_name(log_msg))
+            fhash        = get_hash(log_msg)
+            mid          = str(log_msg.id)
+            if is_stream:
+                link  = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
+                label = '📺 Stream Link'
+                note  = 'Open in browser or any video player to stream online.'
+            else:
+                link  = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
+                label = '⬇️ Download Link'
+                note  = 'Tap to download the file directly.'
+            await query.message.reply(
+                f'<b>{label}</b>
+
+'
+                f'<code>{link}</code>
+
+'
+                f'<i>{note}</i>',
+                parse_mode='html',
+                quote=True,
+                disable_web_page_preview=True
+            )
+        except Exception as e:
+            logger.exception(f'getstream/getdownload error: {e}')
+            await query.answer('⚠️ Could not generate link. Try again.', show_alert=True)
+        return
+
     elif query.data == "prestream":
         await query.answer(text=script.PRE_STREAM_ALERT, show_alert=True)
         dreamcinezone = await client.send_photo(
