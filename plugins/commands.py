@@ -449,25 +449,46 @@ async def stream_buttons(user_id: int, file_id: str, client=None):
         logger.warning(f'stream_buttons error: {e}')
         return None
     
+# In-memory cache: prevents re-forwarding same file to BIN_CHANNEL on every button click
+# Key: Telegram media_id (stable per file), Value: (bin_msg_id, file_name, hash)
+_bin_msg_cache: dict = {}
+
+
+async def _get_bin_msg_info(client, file_id: str):
+    """
+    Return (message_id, file_name, hash) for a file in BIN_CHANNEL.
+    Caches result so each unique file is forwarded to BIN_CHANNEL only ONCE —
+    prevents duplicate messages appearing in BIN_CHANNEL on repeated clicks.
+    """
+    from pyrogram.file_id import FileId as _FileId
+    decoded = _FileId.decode(file_id)
+    cache_key = str(decoded.media_id)  # stable unique key per file
+
+    if cache_key in _bin_msg_cache:
+        return _bin_msg_cache[cache_key]
+
+    # Not in cache — forward to BIN_CHANNEL once and store result
+    msg       = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+    file_name = get_name(msg) or ""
+    fhash     = get_hash(msg)
+    mid       = str(msg.id)
+
+    _bin_msg_cache[cache_key] = (mid, file_name, fhash)
+    return mid, file_name, fhash
+
+
 @Client.on_callback_query(filters.regex(r'^getstream#(.+)'))
 async def getstream_callback(client, callback_query):
-    """Handle Stream button — forward file to BIN_CHANNEL and reply with watch link."""
+    """Handle Stream button — generate watch link without duplicating in BIN_CHANNEL."""
     try:
         encoded = callback_query.data.split('#', 1)[1]
-        # Restore padding and decode file_id
         file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
 
         await callback_query.answer("⏳ Generating stream link...", show_alert=False)
 
-        # Forward/send file to BIN_CHANNEL to get a stable message_id + hash
-        msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-
-        file_name    = get_name(msg)
+        mid, file_name, fhash = await _get_bin_msg_info(client, file_id)
         fname_quoted = quote_plus(file_name) if file_name else "file"
-        fhash        = get_hash(msg)
-        mid          = str(msg.id)
-
-        stream_url = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
+        stream_url   = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
 
         await callback_query.message.reply_text(
             text=(
@@ -486,20 +507,15 @@ async def getstream_callback(client, callback_query):
 
 @Client.on_callback_query(filters.regex(r'^getdownload#(.+)'))
 async def getdownload_callback(client, callback_query):
-    """Handle Download button — forward file to BIN_CHANNEL and reply with download link."""
+    """Handle Download button — generate download link without duplicating in BIN_CHANNEL."""
     try:
         encoded = callback_query.data.split('#', 1)[1]
         file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
 
         await callback_query.answer("⏳ Generating download link...", show_alert=False)
 
-        msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-
-        file_name    = get_name(msg)
+        mid, file_name, fhash = await _get_bin_msg_info(client, file_id)
         fname_quoted = quote_plus(file_name) if file_name else "file"
-        fhash        = get_hash(msg)
-        mid          = str(msg.id)
-
         download_url = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
 
         await callback_query.message.reply_text(
