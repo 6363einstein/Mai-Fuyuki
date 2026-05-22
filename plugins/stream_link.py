@@ -1,5 +1,10 @@
-# Stream & Download link generator
-# When user sends a file to bot in PM → bot generates stream + download buttons
+"""
+stream_link.py
+User forwards/sends any file to bot in PM
+→ Bot saves to BIN_CHANNEL
+→ Generates Watch Online + Download links from Render server
+→ Sends buttons back to user
+"""
 
 import logging
 import asyncio
@@ -8,25 +13,11 @@ from urllib.parse import quote_plus
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-from info import URL, BIN_CHANNEL, LOG_CHANNEL, DELETE_TIME, ADMINS
+from info import URL, BIN_CHANNEL, LOG_CHANNEL, DELETE_TIME
 from dreamxbotz.util.file_properties import get_name, get_hash
 from utils import get_size
 
 logger = logging.getLogger(__name__)
-
-SUPPORTED_MEDIA = (
-    "video", "audio", "document",
-    "video_note", "voice"
-)
-
-
-def get_media(message: Message):
-    """Return the media object from any supported message type."""
-    for attr in SUPPORTED_MEDIA:
-        media = getattr(message, attr, None)
-        if media:
-            return media, attr
-    return None, None
 
 
 @Client.on_message(
@@ -41,51 +32,48 @@ def get_media(message: Message):
     )
 )
 async def generate_stream_link(client, message: Message):
-    """
-    User sends a file in PM →
-    Bot uploads it to BIN_CHANNEL →
-    Generates stream + download links from render server →
-    Sends buttons back to user.
-    """
-    media, media_type = get_media(message)
+
+    # Get media object
+    media = (
+        message.video
+        or message.audio
+        or message.document
+        or message.video_note
+        or message.voice
+    )
     if not media:
         return
 
     processing = await message.reply(
-        "⏳ Generating links, please wait...",
+        "⏳ Please wait, generating links...",
         quote=True
     )
 
     try:
-        # Forward file to BIN_CHANNEL to get a stable message ID + hash
-        # Forward to BIN_CHANNEL for stream link generation
+        # Save to BIN_CHANNEL to get stable message ID + hash
         log_msg = await client.forward_messages(
             chat_id=BIN_CHANNEL,
             from_chat_id=message.chat.id,
             message_ids=message.id
         )
 
-        # Also forward to LOG_CHANNEL for admin record
-        await client.forward_messages(
-            chat_id=LOG_CHANNEL,
-            from_chat_id=message.chat.id,
-            message_ids=message.id
-        )
+        file_name    = get_name(log_msg)
+        fname_quoted = quote_plus(file_name)
+        fhash        = get_hash(log_msg)
+        mid          = str(log_msg.id)
 
-        file_name  = quote_plus(get_name(log_msg))
-        file_hash  = get_hash(log_msg)
-        msg_id     = str(log_msg.id)
+        # Build URLs using Render server
+        stream_url   = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
+        download_url = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
 
-        stream_url   = f"{URL}watch/{msg_id}/{file_name}?hash={file_hash}"
-        download_url = f"{URL}{msg_id}/{file_name}?hash={file_hash}"
-
-        size = get_size(media.file_size) if hasattr(media, "file_size") else ""
-        size_text = f"  •  {size}" if size else ""
+        # File size
+        size = ""
+        if hasattr(media, "file_size") and media.file_size:
+            size = get_size(media.file_size)
 
         caption = (
-            f"<b>🎬 Stream & Download Links</b>\n\n"
-            f"<code>{get_name(log_msg)}</code>{size_text}\n\n"
-            f"<i>Links expire after the file is removed.</i>"
+            f"<b>{file_name}</b>"
+            + (f"\n<code>{size}</code>" if size else "")
         )
 
         buttons = InlineKeyboardMarkup([
@@ -104,19 +92,28 @@ async def generate_stream_link(client, message: Message):
             disable_web_page_preview=True
         )
 
-        # Log to BIN_CHANNEL with user info
-        user = message.from_user
+        # Log to LOG_CHANNEL
+        user    = message.from_user
         mention = user.mention if user else "Unknown"
-        await log_msg.reply(
-            f"🔗 Link generated\n"
-            f"👤 User: {mention} (<code>{user.id if user else '?'}</code>)\n"
-            f"📁 File: {get_name(log_msg)}",
-            quote=True,
+        await client.send_message(
+            chat_id=LOG_CHANNEL,
+            text=(
+                f"🔗 <b>Stream link generated</b>\n"
+                f"👤 User: {mention} (<code>{user.id if user else '?'}</code>)\n"
+                f"📁 File: <code>{file_name}</code>"
+                + (f"\n📦 Size: {size}" if size else "")
+            ),
+            parse_mode="html",
             disable_web_page_preview=True
         )
 
     except Exception as e:
         logger.exception(f"stream_link error: {e}")
-        await processing.edit_text(
-            "⚠️ Could not generate links. Make sure the bot is admin in BIN_CHANNEL."
-        )
+        try:
+            await processing.edit_text(
+                "⚠️ Could not generate links.\n"
+                "Make sure <code>FQDN</code> is set correctly in Render environment variables.",
+                parse_mode="html"
+            )
+        except Exception:
+            pass

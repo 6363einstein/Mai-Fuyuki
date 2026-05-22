@@ -435,25 +435,8 @@ async def start(client, message):
                 pass
 
 async def stream_buttons(user_id: int, file_id: str, client=None):
-    """Generate stream + download buttons using render server URL."""
-    if not client:
-        return None
-    try:
-        log_msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-        fname = quote_plus(get_name(log_msg))
-        fhash = get_hash(log_msg)
-        mid   = str(log_msg.id)
-        stream_url   = f"{URL}watch/{mid}/{fname}?hash={fhash}"
-        download_url = f"{URL}{mid}/{fname}?hash={fhash}"
-        return [
-            [
-                InlineKeyboardButton("▶️ Watch Online", url=stream_url),
-                InlineKeyboardButton("⬇️ Download", url=download_url),
-            ]
-        ]
-    except Exception as e:
-        logger.warning(f"stream_buttons error: {e}")
-        return None
+    """No buttons on auto-filter results. Stream links come via stream_link.py plugin."""
+    return None
     
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
 async def log_file(bot, message):
