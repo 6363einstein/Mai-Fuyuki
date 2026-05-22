@@ -1450,14 +1450,23 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 f"🔗 {label}:\n<code>{link}</code>"
             )
             try:
-                await client.send_cached_media(
-                    chat_id=LOG_CHANNEL,
-                    file_id=file_id,
+                # Forward log_msg to LOG_CHANNEL then edit caption
+                forwarded = await log_msg.forward(LOG_CHANNEL)
+                await forwarded.edit_caption(
                     caption=log_caption,
                     parse_mode='html'
                 )
             except Exception as log_err:
-                logger.warning(f"LOG_CHANNEL send error: {log_err}")
+                # Fallback: send caption as text
+                try:
+                    await client.send_message(
+                        chat_id=LOG_CHANNEL,
+                        text=log_caption,
+                        parse_mode='html',
+                        disable_web_page_preview=True
+                    )
+                except Exception:
+                    logger.warning(f"LOG_CHANNEL send error: {log_err}")
         except Exception as e:
             logger.exception(f'getstream/getdownload error: {e}')
             await query.answer('⚠️ Could not generate link. Try again.', show_alert=True)
