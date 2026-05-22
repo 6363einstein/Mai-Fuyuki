@@ -175,11 +175,7 @@ async def next_page(bot, query):
                    )
         btn.insert(0,
                    [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
-
+                       InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
                    ]
                    )
 
@@ -196,9 +192,7 @@ async def next_page(bot, query):
                    ]
                    )
         btn.insert(0, [
-            InlineKeyboardButton(
-                "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+            InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
         ])
     if ULTRA_FAST_MODE:
         if 0 < offset <= 10:
@@ -455,10 +449,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
                    )
         btn.insert(0,
                    [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                       InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
                    ])
     else:
         btn = []
@@ -474,11 +465,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
                    )
         btn.insert(0,
                    [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
-
+                       InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
                    ])
     if offset != "":
         try:
@@ -614,10 +601,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
                    )
         btn.insert(0,
                    [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                       InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
                    ]
                    )
     else:
@@ -633,10 +617,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
                    ])
         btn.insert(0,
                    [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                       InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")
                    ])
     if offset != "":
         try:
@@ -768,11 +749,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     )
     btn.insert(
         0,
-        [
-            InlineKeyboardButton(
-                "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}"),
-        ],
+        [InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")],
     )
     if n_offset != "":
         try:
@@ -1414,59 +1391,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
             return
 
 
-    elif DreamxData.startswith('getstream#') or DreamxData.startswith('getdownload#'):
-        import base64
-        is_stream = DreamxData.startswith('getstream#')
-        encoded   = DreamxData.split('#', 1)[1]
-        padding   = 4 - len(encoded) % 4
-        file_id   = base64.urlsafe_b64decode(encoded + '=' * padding).decode()
-        try:
-            log_msg      = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-            fname        = get_name(log_msg)
-            fname_quoted = quote_plus(fname)
-            fhash        = get_hash(log_msg)
-            mid          = str(log_msg.id)
-            user         = query.from_user
-            mention      = user.mention if user else "Unknown"
-            if is_stream:
-                link  = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
-                label = '📺 Stream Link'
-            else:
-                link  = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
-                label = '⬇️ Download Link'
-
-            # Show link as popup alert — no new message
-            await query.answer(
-                text=f"{label}\n\n{link}",
-                show_alert=True
-            )
-
-            # Log to LOG_CHANNEL with file + caption
-            log_caption = (
-                f"<b>📁 {fname}</b>\n\n"
-                f"👤 {mention} (<code>{user.id if user else '?'}</code>)\n"
-                f"🔗 {label}:\n<code>{link}</code>"
-            )
-            try:
-                forwarded = await log_msg.forward(LOG_CHANNEL)
-                await forwarded.edit_caption(
-                    caption=log_caption,
-                    parse_mode='html'
-                )
-            except Exception as log_err:
-                try:
-                    await client.send_message(
-                        chat_id=LOG_CHANNEL,
-                        text=log_caption,
-                        parse_mode='html',
-                        disable_web_page_preview=True
-                    )
-                except Exception:
-                    logger.warning(f"LOG_CHANNEL send error: {log_err}")
-        except Exception as e:
-            logger.exception(f'getstream/getdownload error: {e}')
-            await query.answer('⚠️ Could not generate link. Try again.', show_alert=True)
-        return
 
     elif query.data == "prestream":
         await query.answer(text=script.PRE_STREAM_ALERT, show_alert=True)
@@ -1871,13 +1795,8 @@ async def auto_filter(client, msg, spoll=False):
                        ]
                        )
             btn.insert(0,
-                       [
-                           InlineKeyboardButton(
-                               "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                           InlineKeyboardButton(
-                               "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
-
-                       ])
+                       [InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")]
+            )
         else:
             btn = []
             btn.insert(0,
@@ -1891,12 +1810,7 @@ async def auto_filter(client, msg, spoll=False):
                        ]
                        )
             btn.insert(0,
-                       [
-                           InlineKeyboardButton(
-                               "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                           InlineKeyboardButton(
-                               "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
-                       ])
+                       [InlineKeyboardButton("📂 SEND ALL", callback_data=f"sendfiles#{key}")])
 
         if offset != "":
             req = message.from_user.id if message.from_user else 0
@@ -1981,16 +1895,16 @@ async def auto_filter(client, msg, spoll=False):
             temp.IMDB_CAP[message.from_user.id] = None
             if ULTRA_FAST_MODE:
                 if settings.get('button'):
-                    cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'ᴅʀᴇᴀᴍxʙᴏᴛᴢ'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
+                    cap = f"<blockquote>✨ <b>Your search is done! Here's what I found 🔍</b>\n📌 You searched for: <b>{search}</b>\n👤 Your name: {message.from_user.mention}\n📊 Total results: <b>{total_results}</b></blockquote>"
                 else:
-                    cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'ᴅʀᴇᴀᴍxʙᴏᴛᴢ'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
+                    cap = f"<blockquote>✨ <b>Your search is done! Here's what I found 🔍</b>\n📌 You searched for: <b>{search}</b>\n👤 Your name: {message.from_user.mention}\n📊 Total results: <b>{total_results}</b></blockquote>"
                     for idx, file in enumerate(files, start=1):
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>[{get_size(file.file_size)}] {clean_filename(file.file_name)}\n</a></b>"
             else:
                 if settings.get('button'):
-                    cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'ᴅʀᴇᴀᴍxʙᴏᴛᴢ'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
+                    cap = f"<blockquote>✨ <b>Your search is done! Here's what I found 🔍</b>\n📌 You searched for: <b>{search}</b>\n👤 Your name: {message.from_user.mention}\n📊 Total results: <b>{total_results}</b></blockquote>"
                 else:
-                    cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'ᴅʀᴇᴀᴍxʙᴏᴛᴢ'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
+                    cap = f"<blockquote>✨ <b>Your search is done! Here's what I found 🔍</b>\n📌 You searched for: <b>{search}</b>\n👤 Your name: {message.from_user.mention}\n📊 Total results: <b>{total_results}</b></blockquote>"
 
                     for idx, file in enumerate(files, start=1):
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>[{get_size(file.file_size)}] {clean_filename(file.file_name)}\n</a></b>"
