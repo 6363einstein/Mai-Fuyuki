@@ -1434,14 +1434,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 link  = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
                 label = '⬇️ Download Link'
                 note  = 'Tap to download the file directly.'
+            text = f"<b>{label}</b>\n\n<code>{link}</code>\n\n<i>{note}</i>"
             await query.message.reply(
-                f'<b>{label}</b>
-
-'
-                f'<code>{link}</code>
-
-'
-                f'<i>{note}</i>',
+                text,
                 parse_mode='html',
                 quote=True,
                 disable_web_page_preview=True
