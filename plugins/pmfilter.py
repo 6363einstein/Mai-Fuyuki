@@ -166,8 +166,19 @@ async def next_page(bot, query):
 
     else:
         btn = []
+    if 0 < offset <= 10:
+        off_set = 0
+    elif offset == 0:
+        off_set = None
+    else:
+        off_set = offset - 10
+    nav_row = []
+    if off_set is not None:
+        nav_row.append(InlineKeyboardButton("⬅️ BACK", callback_data=f"next_{req}_{key}_{off_set}"))
     if n_offset != 0:
-        btn.append([InlineKeyboardButton(f"➡️ NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}]", callback_data=f"next_{req}_{key}_{n_offset}")])
+        nav_row.append(InlineKeyboardButton(f"NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}] ➡️", callback_data=f"next_{req}_{key}_{n_offset}"))
+    if nav_row:
+        btn.append(nav_row)
     if not settings["button"]:
         cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
         time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
@@ -315,8 +326,13 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
         ]
     else:
         btn = []
+    nav_row = []
+    if offset != "" and offset != 0:
+        nav_row.append(InlineKeyboardButton("⬅️ BACK", callback_data=f"next_{req}_{key}_0"))
     if offset != "":
-        btn.append([InlineKeyboardButton(text=f"➡️ NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}]", callback_data=f"next_{req}_{key}_{offset}")])
+        nav_row.append(InlineKeyboardButton(f"NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}] ➡️", callback_data=f"next_{req}_{key}_{offset}"))
+    if nav_row:
+        btn.append(nav_row)
     if not settings["button"]:
         cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
         time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
@@ -415,8 +431,13 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
 
     else:
         btn = []
+    nav_row = []
+    if offset != "" and offset != 0:
+        nav_row.append(InlineKeyboardButton("⬅️ BACK", callback_data=f"next_{req}_{key}_0"))
     if offset != "":
-        btn.append([InlineKeyboardButton(text=f"➡️ NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}]", callback_data=f"next_{req}_{key}_{offset}")])
+        nav_row.append(InlineKeyboardButton(f"NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}] ➡️", callback_data=f"next_{req}_{key}_{offset}"))
+    if nav_row:
+        btn.append(nav_row)
     if not settings["button"]:
         cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
         time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
@@ -513,8 +534,13 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
                 for f in files
             ]
         )
+    nav_row = []
+    if n_offset != "" and n_offset != 0:
+        nav_row.append(InlineKeyboardButton("⬅️ BACK", callback_data=f"next_{req}_{key}_0"))
     if n_offset != "":
-        btn.append([InlineKeyboardButton(text=f"➡️ NEXT [{math.ceil(int(n_offset)/10)+1 if n_offset else 1}/{math.ceil(total_results/10) if total_results else 1}]", callback_data=f"next_{req}_{key}_{n_offset}")])
+        nav_row.append(InlineKeyboardButton(f"NEXT [{math.ceil(int(n_offset)/10)+1 if n_offset else 1}/{math.ceil(total_results/10) if total_results else 1}] ➡️", callback_data=f"next_{req}_{key}_{n_offset}"))
+    if nav_row:
+        btn.append(nav_row)
     if not settings.get("button"):
         curr_time = datetime.now(pytz.timezone("Asia/Kolkata")).time()
         time_difference = timedelta(
@@ -1527,7 +1553,13 @@ async def auto_filter(client, msg, spoll=False):
             btn = []
         if offset != "":
             req = message.from_user.id if message.from_user else 0
-            btn.append([InlineKeyboardButton(text=f"➡️ NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}]", callback_data=f"next_{req}_{key}_{offset}")])
+            nav_row = []
+            if offset != "" and offset != 0:
+                nav_row.append(InlineKeyboardButton("⬅️ BACK", callback_data=f"next_{req}_{key}_0"))
+            if offset != "":
+                nav_row.append(InlineKeyboardButton(f"NEXT [{math.ceil(int(offset)/10)+1 if offset else 1}/{math.ceil(total_results/10) if total_results else 1}] ➡️", callback_data=f"next_{req}_{key}_{offset}"))
+            if nav_row:
+                btn.append(nav_row)
 
         if settings.get('imdb'):
             imdb = await get_posterx(search, file=(files[0]).file_name) if TMDB_POSTER else await get_poster(search, file=(files[0]).file_name)
