@@ -15,6 +15,8 @@ from database.config_db import mdb
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup
 from pyrogram import Client, filters, enums, StopPropagation
 from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant , ChannelInvalid, PeerIdInvalid
+from dreamxbotz.util.file_properties import get_name, get_hash
+from urllib.parse import quote_plus
 from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files, save_file
 from database.users_chats_db import db
 from info import *
@@ -311,7 +313,7 @@ async def start(client, message):
                             f_caption = f_caption
                     if f_caption is None:
                         f_caption = f"{clean_filename(files1.file_name)}"
-                    btn = await stream_buttons(message.from_user.id, file_id)
+                    btn = await stream_buttons(message.from_user.id, file_id, client)
                     msg = await client.send_cached_media(
                         chat_id=message.from_user.id,
                         cover=cover,
@@ -348,7 +350,7 @@ async def start(client, message):
                 if COVERX:
                     details= await get_file_details(file_id)
                     cover = details.get('cover', None)
-                btn = await stream_buttons(message.from_user.id, file_id)
+                btn = await stream_buttons(message.from_user.id, file_id, client)
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
                     cover=cover,
@@ -401,7 +403,7 @@ async def start(client, message):
 
         if f_caption is None:
             f_caption = clean_filename(files.file_name)
-        btn = await stream_buttons(message.from_user.id, file_id)
+        btn = await stream_buttons(message.from_user.id, file_id, client)
         msg = await client.send_cached_media(
             chat_id=message.from_user.id,
             file_id=file_id,
@@ -432,8 +434,26 @@ async def start(client, message):
                 logger.exception(f"Error In Deleting Sticker - {e}")
                 pass
 
-async def stream_buttons(user_id: int, file_id: str):
-    return None
+async def stream_buttons(user_id: int, file_id: str, client=None):
+    """Generate stream + download buttons using render server URL."""
+    if not client:
+        return None
+    try:
+        log_msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+        fname = quote_plus(get_name(log_msg))
+        fhash = get_hash(log_msg)
+        mid   = str(log_msg.id)
+        stream_url   = f"{URL}watch/{mid}/{fname}?hash={fhash}"
+        download_url = f"{URL}{mid}/{fname}?hash={fhash}"
+        return [
+            [
+                InlineKeyboardButton("▶️ Watch Online", url=stream_url),
+                InlineKeyboardButton("⬇️ Download", url=download_url),
+            ]
+        ]
+    except Exception as e:
+        logger.warning(f"stream_buttons error: {e}")
+        return None
     
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
 async def log_file(bot, message):

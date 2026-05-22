@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-from info import URL, BIN_CHANNEL, DELETE_TIME, ADMINS
+from info import URL, BIN_CHANNEL, LOG_CHANNEL, DELETE_TIME, ADMINS
 from dreamxbotz.util.file_properties import get_name, get_hash
 from utils import get_size
 
@@ -58,8 +58,16 @@ async def generate_stream_link(client, message: Message):
 
     try:
         # Forward file to BIN_CHANNEL to get a stable message ID + hash
+        # Forward to BIN_CHANNEL for stream link generation
         log_msg = await client.forward_messages(
             chat_id=BIN_CHANNEL,
+            from_chat_id=message.chat.id,
+            message_ids=message.id
+        )
+
+        # Also forward to LOG_CHANNEL for admin record
+        await client.forward_messages(
+            chat_id=LOG_CHANNEL,
             from_chat_id=message.chat.id,
             message_ids=message.id
         )
