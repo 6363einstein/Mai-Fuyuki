@@ -313,15 +313,14 @@ async def start(client, message):
                             f_caption = f_caption
                     if f_caption is None:
                         f_caption = f"{clean_filename(files1.file_name)}"
-                    btn = await stream_buttons(message.from_user.id, file_id, client)
                     msg = await client.send_cached_media(
                         chat_id=message.from_user.id,
                         cover=cover,
                         file_id=file_id,
                         caption=f_caption,
                         protect_content=settings.get('file_secure', PROTECT_CONTENT),
-                        reply_markup=InlineKeyboardMarkup(btn) if btn else None
                     )
+                    asyncio.create_task(_attach_stream_buttons(client, msg, file_id))
                     filesarr.append(msg)
                 k = await client.send_message(chat_id=message.from_user.id, text=script.DEL_MSG.format(get_time(DELETE_TIME)), parse_mode=enums.ParseMode.HTML)
                 await sticker.delete()
@@ -350,13 +349,13 @@ async def start(client, message):
                 if COVERX:
                     details= await get_file_details(file_id)
                     cover = details.get('cover', None)
-                btn = await stream_buttons(message.from_user.id, file_id, client)
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
                     cover=cover,
                     file_id=file_id,
                     protect_content=settings.get('file_secure', PROTECT_CONTENT),
-                    reply_markup=InlineKeyboardMarkup(btn) if btn else None)
+                )
+                asyncio.create_task(_attach_stream_buttons(client, msg, file_id))
 
                 filetype = msg.media
                 file = getattr(msg, filetype.value)
@@ -370,10 +369,7 @@ async def start(client, message):
                         f_caption=DREAMX_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
                     except:
                         return
-                await msg.edit_caption(
-                    f_caption,
-                    reply_markup=InlineKeyboardMarkup(btn) if btn else None
-                )
+                await msg.edit_caption(f_caption)
                 k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
                     quote=True, parse_mode=enums.ParseMode.HTML
                 )
@@ -403,15 +399,14 @@ async def start(client, message):
 
         if f_caption is None:
             f_caption = clean_filename(files.file_name)
-        btn = await stream_buttons(message.from_user.id, file_id, client)
         msg = await client.send_cached_media(
             chat_id=message.from_user.id,
             file_id=file_id,
             cover=cover,
             caption=f_caption,
             protect_content=settings.get('file_secure', PROTECT_CONTENT),
-            reply_markup=InlineKeyboardMarkup(btn) if btn else None
         )
+        asyncio.create_task(_attach_stream_buttons(client, msg, file_id))
         
         k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
             quote=True, parse_mode=enums.ParseMode.HTML
@@ -434,44 +429,47 @@ async def start(client, message):
                 logger.exception(f"Error In Deleting Sticker - {e}")
                 pass
 
-# In-memory cache: {file_unique_id -> (bin_msg_id, file_name, hash)}
-# Prevents forwarding same file to BIN_CHANNEL more than once per bot session.
+# Per-session cache {media_id_str -> (stream_url, download_url)}
+# Each unique file is forwarded to BIN_CHANNEL at most once per bot session.
 _bin_url_cache: dict = {}
 
 
-async def stream_buttons(user_id: int, file_id: str, client=None):
+async def _attach_stream_buttons(client, user_msg, file_id: str):
     """
-    Forward file to BIN_CHANNEL ONCE, cache the result, and return
-    direct URL buttons — no callback needed, BIN_CHANNEL gets no duplicates.
+    Called AFTER the file has already been sent to the user.
+    Forwards to BIN_CHANNEL once (cached), builds URLs, edits user message buttons.
+    Runs as a fire-and-forget task so it never blocks delivery.
     """
     try:
         from pyrogram.file_id import FileId as _FID
-        _decoded = _FID.decode(file_id)
-        cache_key = str(_decoded.media_id)
+        cache_key = str(_FID.decode(file_id).media_id)
 
         if cache_key in _bin_url_cache:
             stream_url, download_url = _bin_url_cache[cache_key]
         else:
-            # Forward to BIN_CHANNEL once to get stable msg_id + hash
-            tmp_msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
-            _fname        = get_name(tmp_msg) or "file"
-            _fname_quoted = quote_plus(_fname)
-            _fhash        = get_hash(tmp_msg)
-            _mid          = str(tmp_msg.id)
-
-            stream_url   = f"{URL}watch/{_mid}/{_fname_quoted}?hash={_fhash}"
-            download_url = f"{URL}{_mid}/{_fname_quoted}?hash={_fhash}"
+            bin_msg      = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+            _fname       = get_name(bin_msg) or "file"
+            _fhash       = get_hash(bin_msg)
+            _mid         = str(bin_msg.id)
+            stream_url   = f"{URL}watch/{_mid}/{quote_plus(_fname)}?hash={_fhash}"
+            download_url = f"{URL}{_mid}/{quote_plus(_fname)}?hash={_fhash}"
             _bin_url_cache[cache_key] = (stream_url, download_url)
 
-        return [
-            [
-                InlineKeyboardButton('📺 Stream', url=stream_url),
-                InlineKeyboardButton('⬇️ Download', url=download_url),
-            ]
-        ]
+        new_markup = InlineKeyboardMarkup([[
+            InlineKeyboardButton("📺 Stream",   url=stream_url),
+            InlineKeyboardButton("⬇️ Download", url=download_url),
+        ]])
+        try:
+            await user_msg.edit_reply_markup(new_markup)
+        except Exception:
+            pass  # message may already be deleted — that's fine
     except Exception as e:
-        logger.warning(f'stream_buttons error: {e}')
-        return None
+        logger.warning(f"_attach_stream_buttons error: {e}")
+
+
+async def stream_buttons(user_id: int, file_id: str, client=None):
+    """Returns None — buttons are attached after send via _attach_stream_buttons."""
+    return None
 
 
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
