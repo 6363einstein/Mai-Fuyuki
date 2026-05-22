@@ -449,6 +449,74 @@ async def stream_buttons(user_id: int, file_id: str, client=None):
         logger.warning(f'stream_buttons error: {e}')
         return None
     
+@Client.on_callback_query(filters.regex(r'^getstream#(.+)'))
+async def getstream_callback(client, callback_query):
+    """Handle Stream button — forward file to BIN_CHANNEL and reply with watch link."""
+    try:
+        encoded = callback_query.data.split('#', 1)[1]
+        # Restore padding and decode file_id
+        file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
+
+        await callback_query.answer("⏳ Generating stream link...", show_alert=False)
+
+        # Forward/send file to BIN_CHANNEL to get a stable message_id + hash
+        msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+
+        file_name    = get_name(msg)
+        fname_quoted = quote_plus(file_name) if file_name else "file"
+        fhash        = get_hash(msg)
+        mid          = str(msg.id)
+
+        stream_url = f"{URL}watch/{mid}/{fname_quoted}?hash={fhash}"
+
+        await callback_query.message.reply_text(
+            text=(
+                f"<b>📺 Watch Online</b>\n\n"
+                f"<b>File:</b> <code>{file_name or 'Unknown'}</code>\n\n"
+                f"🔗 <a href='{stream_url}'>Click here to watch</a>\n\n"
+                f"<i>⚠️ Link expires soon. Stream before it's gone!</i>"
+            ),
+            parse_mode=enums.ParseMode.HTML,
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        logger.exception(f"getstream_callback error: {e}")
+        await callback_query.answer("⚠️ Failed to generate stream link.", show_alert=True)
+
+
+@Client.on_callback_query(filters.regex(r'^getdownload#(.+)'))
+async def getdownload_callback(client, callback_query):
+    """Handle Download button — forward file to BIN_CHANNEL and reply with download link."""
+    try:
+        encoded = callback_query.data.split('#', 1)[1]
+        file_id = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode()
+
+        await callback_query.answer("⏳ Generating download link...", show_alert=False)
+
+        msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id)
+
+        file_name    = get_name(msg)
+        fname_quoted = quote_plus(file_name) if file_name else "file"
+        fhash        = get_hash(msg)
+        mid          = str(msg.id)
+
+        download_url = f"{URL}{mid}/{fname_quoted}?hash={fhash}"
+
+        await callback_query.message.reply_text(
+            text=(
+                f"<b>⬇️ Download Link</b>\n\n"
+                f"<b>File:</b> <code>{file_name or 'Unknown'}</code>\n\n"
+                f"🔗 <a href='{download_url}'>Click here to download</a>\n\n"
+                f"<i>⚠️ Link expires soon. Download before it's gone!</i>"
+            ),
+            parse_mode=enums.ParseMode.HTML,
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        logger.exception(f"getdownload_callback error: {e}")
+        await callback_query.answer("⚠️ Failed to generate download link.", show_alert=True)
+
+
 @Client.on_message(filters.command('logs') & filters.user(ADMINS))
 async def log_file(bot, message):
     """Send log file"""
