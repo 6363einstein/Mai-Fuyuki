@@ -145,8 +145,12 @@ if 'DYNO' in environ:
 else:
     ON_HEROKU = False
 
-FQDN = str(getenv('FQDN', BIND_ADRESS)) if not ON_HEROKU or getenv('FQDN') else APP_NAME + '.herokuapp.com'
-# FQDN Example for Render: mai-fuyuki-hwnb.onrender.com
+# Priority: FQDN env var → Heroku APP_NAME → Render default
+FQDN = (
+    getenv('FQDN')
+    or (APP_NAME + '.herokuapp.com' if ON_HEROKU and APP_NAME else None)
+    or 'mai-fuyuki-qvti.onrender.com'  # your Render domain
+)
 
 if HAS_SSL:
     URL = "https://{}/".format(FQDN)
